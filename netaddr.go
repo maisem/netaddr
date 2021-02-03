@@ -653,19 +653,31 @@ func appendDecimal(b []byte, x uint8) []byte {
 	return append(b, digits[x%10])
 }
 
-// appendHex appends the hex string representation of x to b.
-func appendHex(b []byte, x uint16) []byte {
+// Descriptive constants to use for the pad parameter of appendHex.
+const (
+	padHex   = true
+	noPadHex = false
+)
+
+// appendHex appends the hex string representation of x to b and optionally
+// applies leading zero padding.
+func appendHex(b []byte, x uint16, pad bool) []byte {
 	// Using this function rather than strconv.AppendUint makes IPv6
 	// string building 2x faster.
-
 	if x >= 0x1000 {
 		b = append(b, digits[x>>12])
+	} else if pad {
+		b = append(b, '0')
 	}
 	if x >= 0x100 {
 		b = append(b, digits[x>>8&0xf])
+	} else if pad {
+		b = append(b, '0')
 	}
 	if x >= 0x10 {
 		b = append(b, digits[x>>4&0xf])
+	} else if pad {
+		b = append(b, '0')
 	}
 	return append(b, digits[x&0xf])
 }
@@ -720,7 +732,38 @@ func (ip IP) string6() string {
 			ret = append(ret, ':')
 		}
 
-		ret = appendHex(ret, ip.v6u16(i))
+		ret = appendHex(ret, ip.v6u16(i), noPadHex)
+	}
+
+	if ip.z != z6noz {
+		ret = append(ret, '%')
+		ret = append(ret, ip.Zone()...)
+	}
+	return string(ret)
+}
+
+// StringExpanded returns the string form of the IP address ip, but IPv6
+// addresses are expanded with leading zeroes and no "::" compression. For
+// example, "2001:db8::1" becomes "2001:0db8:0000:0000:0000:0000:0000:0001".
+//
+// IPv4 and invalid IP addresses are formatted the same as when using IP.String.
+// See the documentation of IP.String for more details.
+func (ip IP) StringExpanded() string {
+	// Invalid and IPv4 are handled the same as in String.
+	switch ip.z {
+	case z0, z4:
+		return ip.String()
+	}
+
+	// See the comment in IP.string6.
+	const max = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
+	ret := make([]byte, 0, max)
+	for i := uint8(0); i < 8; i++ {
+		if i > 0 {
+			ret = append(ret, ':')
+		}
+
+		ret = appendHex(ret, ip.v6u16(i), padHex)
 	}
 
 	if ip.z != z6noz {
