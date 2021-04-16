@@ -805,6 +805,34 @@ func (ip *IP) UnmarshalText(text []byte) error {
 	return err
 }
 
+// MarshalBinary implements the encoding.BinaryMarshaler interface,
+func (ip IP) MarshalBinary() ([]byte, error) {
+	if ip.Is4() {
+		b := ip.As4()
+		return b[:], nil
+	}
+	b := ip.As16()
+	return b[:], nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (ip *IP) UnmarshalBinary(b []byte) error {
+	if ip.z != z0 {
+		return errors.New("netaddr: refusing to Unmarshal into non-zero IP")
+	}
+	switch len(b) {
+	case 0:
+		return nil
+	case 4:
+		*ip = IPv4(b[0], b[1], b[2], b[3])
+		return nil
+	case 16:
+		*ip = ipv6Slice(b)
+		return nil
+	}
+	return fmt.Errorf("netaddr: unexpected ip size: %v", len(b))
+}
+
 // IPPort is an IP & port number.
 //
 // It's meant to be used as a value type.

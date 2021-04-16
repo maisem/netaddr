@@ -310,6 +310,40 @@ func TestParseIP(t *testing.T) {
 	}
 }
 
+func TestIPMarshalUnmarshalBinary(t *testing.T) {
+	tests := []struct {
+		ip       string
+		wantSize int
+	}{
+		{"1.2.3.4", 4},
+		{"fd7a:115c:a1e0:ab12:4843:cd96:626b:430b", 16},
+		{"::ffff:c000:0280", 16},
+	}
+	for _, tc := range tests {
+		ip := mustIP(tc.ip)
+		b, err := ip.MarshalBinary()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(b) != tc.wantSize {
+			t.Fatalf("ipv4 got %d; want %d", len(b), tc.wantSize)
+		}
+		var ip2 IP
+		if err := ip2.UnmarshalBinary(b); err != nil {
+			t.Fatal(err)
+		}
+		if ip != ip2 {
+			t.Fatalf("got %v; want %v", ip2, ip)
+		}
+	}
+
+	// Cannot unmarshal into a non-zero IP
+	ip := MustParseIP("1.2.3.4")
+	if err := ip.UnmarshalBinary([]byte{1, 1, 1, 1}); err == nil {
+		t.Fatal("unmarshaled into non-empty IP")
+	}
+}
+
 func TestIPMarshalUnmarshal(t *testing.T) {
 	// This only tests the cases where Marshal/Unmarshal diverges from
 	// the behavior of ParseIP/String. For the rest of the test cases,
