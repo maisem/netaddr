@@ -811,8 +811,12 @@ func (ip IP) MarshalBinary() ([]byte, error) {
 		b := ip.As4()
 		return b[:], nil
 	}
-	b := ip.As16()
-	return b[:], nil
+	b16 := ip.As16()
+	b := b16[:]
+	if z := ip.Zone(); z != "" {
+		b = append(b, []byte(z)...)
+	}
+	return b, nil
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
@@ -820,14 +824,18 @@ func (ip *IP) UnmarshalBinary(b []byte) error {
 	if ip.z != z0 {
 		return errors.New("netaddr: refusing to Unmarshal into non-zero IP")
 	}
-	switch len(b) {
-	case 0:
+	n := len(b)
+	switch {
+	case n == 0:
 		return nil
-	case 4:
+	case n == 4:
 		*ip = IPv4(b[0], b[1], b[2], b[3])
 		return nil
-	case 16:
+	case n == 16:
 		*ip = ipv6Slice(b)
+		return nil
+	case n > 16:
+		*ip = ipv6Slice(b[:16]).WithZone(string(b[16:]))
 		return nil
 	}
 	return fmt.Errorf("netaddr: unexpected ip size: %v", len(b))

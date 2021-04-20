@@ -318,6 +318,7 @@ func TestIPMarshalUnmarshalBinary(t *testing.T) {
 		{"1.2.3.4", 4},
 		{"fd7a:115c:a1e0:ab12:4843:cd96:626b:430b", 16},
 		{"::ffff:c000:0280", 16},
+		{"::ffff:c000:0280%eth0", 20},
 	}
 	for _, tc := range tests {
 		ip := mustIP(tc.ip)
